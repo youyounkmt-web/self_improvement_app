@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 // ignore: depend_on_referenced_packages
 import 'package:table_calendar/table_calendar.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Add this import
+import 'dart:convert'; // Add this import for JSON encoding/decoding
 
 void main() {
   runApp(const MyApp());
@@ -12,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'カレンダーアプリ',
+      title: '自分磨き（仮）',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
@@ -92,6 +94,50 @@ class _CalendarPageState extends State<CalendarPage> {
   // 日付ごとの予定を保存する Map
   final Map<DateTime, List<String>> _events = {};
 
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents(); // Load events when the widget initializes
+  }
+
+  // A helper function to create a simplified key for DateTime objects
+  String _dateToString(DateTime date) {
+    return '${date.year}-${date.month}-${date.day}';
+  }
+
+  // A helper function to parse the string key back to a DateTime object
+  DateTime _stringToDate(String dateString) {
+    final parts = dateString.split('-');
+    return DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+  }
+
+  // Function to load events from shared_preferences
+  Future<void> _loadEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? eventsJson = prefs.getString('events');
+    if (eventsJson != null) {
+      final Map<String, dynamic> decodedData = json.decode(eventsJson);
+      decodedData.forEach((key, value) {
+        _events[_stringToDate(key)] = List<String>.from(value);
+      });
+      setState(() {});
+    }
+  }
+
+  // Function to save events to shared_preferences
+  Future<void> _saveEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Convert DateTime keys to String keys for JSON serialization
+    final Map<String, dynamic> serializableMap = _events.map(
+      (key, value) => MapEntry(_dateToString(key), value),
+    );
+    await prefs.setString('events', json.encode(serializableMap));
+  }
+
   List<String> _getEventsForDay(DateTime day) {
     return _events[DateTime(day.year, day.month, day.day)] ?? [];
   }
@@ -106,6 +152,18 @@ class _CalendarPageState extends State<CalendarPage> {
       _events[date] = [];
     }
     _events[date]!.add(event);
+    _saveEvents(); // Save events after adding
+    setState(() {});
+  }
+
+  void _removeEvent(String event) {
+    final date = DateTime(
+      _selectedDay.year,
+      _selectedDay.month,
+      _selectedDay.day,
+    );
+    _events[date]?.remove(event);
+    _saveEvents(); // Save events after removing
     setState(() {});
   }
 
@@ -135,7 +193,25 @@ class _CalendarPageState extends State<CalendarPage> {
             child: ListView(
               children: _getEventsForDay(
                 _selectedDay,
-              ).map((event) => ListTile(title: Text(event))).toList(),
+              )
+                  .map(
+                    (event) => Dismissible(
+                      key: Key(event),
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      onDismissed: (direction) {
+                        _removeEvent(event);
+                      },
+                      child: ListTile(
+                        title: Text(event),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ],

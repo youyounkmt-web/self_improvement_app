@@ -1,5 +1,5 @@
-name: my_calendar_app      # アプリ名。先頭にスペースなし
-description: A simple calendar app to manage events
+name: self_improvement_app      # アプリ名。先頭にスペースなし
+description: A simple self-improvement app
 version: 1.0.0+1
 
 environment:
@@ -8,6 +8,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shared_preferences: ^2.5.3
   table_calendar: ^3.0.9
 
 dev_dependencies:
