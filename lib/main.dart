@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-// ignore: depend_on_referenced_packages
 import 'package:table_calendar/table_calendar.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Add this import
-import 'dart:convert'; // Add this import for JSON encoding/decoding
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -14,8 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '自分磨き（仮）HARIBO Chamallows Soft kiss仕様', //takeが編集したよb
-
+      title: '自分磨き（仮）HARIBO Chamallows Soft kiss仕様',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
@@ -31,7 +29,7 @@ class StartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade100, // 背景色
+      backgroundColor: Colors.deepPurple.shade100,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -53,10 +51,8 @@ class StartPage extends StatelessWidget {
             const SizedBox(height: 40),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 16,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
@@ -92,79 +88,85 @@ class _CalendarPageState extends State<CalendarPage> {
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
 
-  // 日付ごとの予定を保存する Map
-  final Map<DateTime, List<String>> _events = {};
+  final List<String> _categories = ['筋トレ', '服を買う', '顔トレ', 'その他'];
+
+  // Map<DateTime, List<Map<String,String>>> でイベント管理
+  final Map<DateTime, List<Map<String, String>>> _events = {};
 
   @override
   void initState() {
     super.initState();
-    _loadEvents(); // Load events when the widget initializes
+    _loadEvents();
   }
 
-  // A helper function to create a simplified key for DateTime objects
-  String _dateToString(DateTime date) {
-    return '${date.year}-${date.month}-${date.day}';
-  }
+  String _dateToString(DateTime date) =>
+      '${date.year}-${date.month}-${date.day}';
 
-  // A helper function to parse the string key back to a DateTime object
   DateTime _stringToDate(String dateString) {
     final parts = dateString.split('-');
     return DateTime(
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-      int.parse(parts[2]),
-    );
+        int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
   }
 
-  // Function to load events from shared_preferences
+  // ------------------ データ読み込み ------------------
   Future<void> _loadEvents() async {
     final prefs = await SharedPreferences.getInstance();
     final String? eventsJson = prefs.getString('events');
     if (eventsJson != null) {
-      final Map<String, dynamic> decodedData = json.decode(eventsJson);
+      final decodedData = json.decode(eventsJson);
+      _events.clear();
+
       decodedData.forEach((key, value) {
-        _events[_stringToDate(key)] = List<String>.from(value);
+        final date = _stringToDate(key);
+
+        if (value is List) {
+          if (value.isNotEmpty && value.first is String) {
+            // 以前の形式(List<String>) -> Map<String,String> に変換
+            _events[date] = (value as List)
+                .map((e) => {'name': e as String, 'category': 'その他'})
+                .toList();
+          } else if (value.isNotEmpty && value.first is Map) {
+            // 新しい形式
+            _events[date] = List<Map<String, String>>.from(
+                (value as List).map((e) => Map<String, String>.from(e)));
+          } else {
+            _events[date] = [];
+          }
+        } else {
+          _events[date] = [];
+        }
       });
+
       setState(() {});
     }
   }
 
-  // Function to save events to shared_preferences
+  // ------------------ データ保存 ------------------
   Future<void> _saveEvents() async {
     final prefs = await SharedPreferences.getInstance();
-    // Convert DateTime keys to String keys for JSON serialization
-    final Map<String, dynamic> serializableMap = _events.map(
-      (key, value) => MapEntry(_dateToString(key), value),
-    );
+    final Map<String, dynamic> serializableMap =
+        _events.map((key, value) => MapEntry(_dateToString(key), value));
     await prefs.setString('events', json.encode(serializableMap));
   }
 
-  List<String> _getEventsForDay(DateTime day) {
+  List<Map<String, String>> _getEventsForDay(DateTime day) {
     return _events[DateTime(day.year, day.month, day.day)] ?? [];
   }
 
-  void _addEvent(String event) {
-    final date = DateTime(
-      _selectedDay.year,
-      _selectedDay.month,
-      _selectedDay.day,
-    );
-    if (_events[date] == null) {
-      _events[date] = [];
-    }
-    _events[date]!.add(event);
-    _saveEvents(); // Save events after adding
+  void _addEvent(String name, String category) {
+    final date =
+        DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+    if (_events[date] == null) _events[date] = [];
+    _events[date]!.add({'name': name, 'category': category});
+    _saveEvents();
     setState(() {});
   }
 
-  void _removeEvent(String event) {
-    final date = DateTime(
-      _selectedDay.year,
-      _selectedDay.month,
-      _selectedDay.day,
-    );
+  void _removeEvent(Map<String, String> event) {
+    final date =
+        DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
     _events[date]?.remove(event);
-    _saveEvents(); // Save events after removing
+    _saveEvents();
     setState(() {});
   }
 
@@ -178,37 +180,32 @@ class _CalendarPageState extends State<CalendarPage> {
             firstDay: DateTime.utc(2020, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: _focusedDay,
-            selectedDayPredicate: (day) {
-              return isSameDay(_selectedDay, day);
-            },
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
                 _focusedDay = focusedDay;
               });
             },
-            eventLoader: _getEventsForDay,
+            eventLoader: (day) => _getEventsForDay(day),
           ),
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
-              children: _getEventsForDay(_selectedDay)
-                  .map(
-                    (event) => Dismissible(
-                      key: Key(event),
-                      background: Container(
-                        color: Colors.red,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (direction) {
-                        _removeEvent(event);
-                      },
-                      child: ListTile(title: Text(event)),
-                    ),
-                  )
-                  .toList(),
+              children: _getEventsForDay(_selectedDay).map((event) {
+                final displayText = '${event['name']} [${event['category']}]';
+                return Dismissible(
+                  key: Key(displayText),
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (direction) => _removeEvent(event),
+                  child: ListTile(title: Text(displayText)),
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -216,35 +213,58 @@ class _CalendarPageState extends State<CalendarPage> {
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () {
+          String inputText = '';
+          String selectedCategory = _categories[0];
+
           showDialog(
             context: context,
             builder: (context) {
-              String inputText = '';
-              return AlertDialog(
-                title: const Text('予定を追加'),
-                content: TextField(
-                  onChanged: (value) {
-                    inputText = value;
-                  },
-                  decoration: const InputDecoration(hintText: '予定を入力してください'),
+              return StatefulBuilder(
+                builder: (context, setStateDialog) => AlertDialog(
+                  title: const Text('予定を追加'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        onChanged: (value) => inputText = value,
+                        decoration:
+                            const InputDecoration(hintText: '予定を入力してください'),
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButton<String>(
+                        value: selectedCategory,
+                        onChanged: (value) {
+                          if (value != null) {
+                            setStateDialog(() {
+                              selectedCategory = value;
+                            });
+                          }
+                        },
+                        items: _categories
+                            .map((category) => DropdownMenuItem(
+                                  value: category,
+                                  child: Text(category),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('キャンセル'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        if (inputText.isNotEmpty) {
+                          _addEvent(inputText, selectedCategory);
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: const Text('追加'),
+                    ),
+                  ],
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text('キャンセル'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      if (inputText.isNotEmpty) {
-                        _addEvent(inputText);
-                      }
-                      Navigator.pop(context);
-                    },
-                    child: const Text('追加'),
-                  ),
-                ],
               );
             },
           );
