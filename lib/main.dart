@@ -4,7 +4,6 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Add this import
 import 'dart:convert'; // Add this import for JSON encoding/decoding
 
-//takeが編集したよ
 void main() {
   runApp(const MyApp());
 }
@@ -15,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '自分磨き（仮）ハリボーチョコマシュマロ仕様',
+      title: '自分磨き（仮）ハリボーチョコマシュマロ仕様', //takeが編集したよb
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
