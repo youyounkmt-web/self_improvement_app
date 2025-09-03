@@ -171,7 +171,7 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('カレンダーアプリ')),
+      appBar: AppBar(title: const Text('チョコマシュカレンダー')),
       body: Column(
         children: [
           TableCalendar(
