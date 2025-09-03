@@ -14,9 +14,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+<<<<<<< HEAD
 
+=======
+>>>>>>> f5631cb9a3ace5df77286c09b115624beb660576
       title: '自分磨き（仮）HARIBO Chamallows Soft kiss仕様', //takeが編集したよb
-      
+
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
@@ -172,7 +175,7 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('カレンダーアプリ')),
+      appBar: AppBar(title: const Text('チョコマシュカレンダー')),
       body: Column(
         children: [
           TableCalendar(

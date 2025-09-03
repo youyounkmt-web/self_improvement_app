@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/main.dart'; // あなたのmain.dartをインポート
+import 'package:self_improvement_app/main.dart'; // あなたのmain.dartをインポート
 
 void main() {
   testWidgets('スタート画面にタイトルとボタンが表示されるかテスト', (WidgetTester tester) async {
