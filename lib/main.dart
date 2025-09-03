@@ -122,13 +122,13 @@ class _CalendarPageState extends State<CalendarPage> {
         if (value is List) {
           if (value.isNotEmpty && value.first is String) {
             // 以前の形式(List<String>) -> Map<String,String> に変換
-            _events[date] = (value as List)
+            _events[date] = value
                 .map((e) => {'name': e as String, 'category': 'その他'})
                 .toList();
           } else if (value.isNotEmpty && value.first is Map) {
             // 新しい形式
             _events[date] = List<Map<String, String>>.from(
-                (value as List).map((e) => Map<String, String>.from(e)));
+                value.map((e) => Map<String, String>.from(e)));
           } else {
             _events[date] = [];
           }
