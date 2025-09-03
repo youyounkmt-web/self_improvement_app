@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Add this import
 import 'dart:convert'; // Add this import for JSON encoding/decoding
 
+//takeが編集したよ
 void main() {
   runApp(const MyApp());
 }
@@ -191,9 +192,7 @@ class _CalendarPageState extends State<CalendarPage> {
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
-              children: _getEventsForDay(
-                _selectedDay,
-              )
+              children: _getEventsForDay(_selectedDay)
                   .map(
                     (event) => Dismissible(
                       key: Key(event),
@@ -206,9 +205,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       onDismissed: (direction) {
                         _removeEvent(event);
                       },
-                      child: ListTile(
-                        title: Text(event),
-                      ),
+                      child: ListTile(title: Text(event)),
                     ),
                   )
                   .toList(),
