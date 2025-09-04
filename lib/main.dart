@@ -183,9 +183,16 @@ class _CalendarPageState extends State<CalendarPage> {
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
 
-  final List<String> _categories = ['筋トレ', '服を買う', '顔トレ', 'その他'];
+  final List<String> _categories = ['筋トレ', '服を買う', '勉強', 'その他'];
 
-  // Map<DateTime, List<Map<String,String>>> でイベント管理
+  // カテゴリーごとの色
+  final Map<String, Color> _categoryColors = {
+    '筋トレ': Colors.red,
+    '服を買う': Colors.blue,
+    '勉強': Colors.green,
+    'その他': Colors.grey,
+  };
+
   final Map<DateTime, List<Map<String, String>>> _events = {};
 
   @override
@@ -203,7 +210,6 @@ class _CalendarPageState extends State<CalendarPage> {
         int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
   }
 
-  // ------------------ データ読み込み ------------------
   Future<void> _loadEvents() async {
     final prefs = await SharedPreferences.getInstance();
     final String? eventsJson = prefs.getString('events');
@@ -213,22 +219,17 @@ class _CalendarPageState extends State<CalendarPage> {
 
       decodedData.forEach((key, value) {
         final date = _stringToDate(key);
-
         if (value is List) {
           if (value.isNotEmpty && value.first is String) {
-            // 以前の形式(List<String>) -> Map<String,String> に変換
-            _events[date] = value
+            _events[date] = (value as List)
                 .map((e) => {'name': e as String, 'category': 'その他'})
                 .toList();
           } else if (value.isNotEmpty && value.first is Map) {
-            // 新しい形式
             _events[date] = List<Map<String, String>>.from(
-                value.map((e) => Map<String, String>.from(e)));
+                (value as List).map((e) => Map<String, String>.from(e)));
           } else {
             _events[date] = [];
           }
-        } else {
-          _events[date] = [];
         }
       });
 
@@ -236,7 +237,6 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  // ------------------ データ保存 ------------------
   Future<void> _saveEvents() async {
     final prefs = await SharedPreferences.getInstance();
     final Map<String, dynamic> serializableMap =
@@ -283,14 +283,39 @@ class _CalendarPageState extends State<CalendarPage> {
               });
             },
             eventLoader: (day) => _getEventsForDay(day),
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, date, events) {
+                if (events.isEmpty) return null;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: events.take(3).map((event) {
+                    final category =
+                        (event as Map<String, String>)['category'] ?? 'その他';
+                    final color = _categoryColors[category] ?? Colors.grey;
+                    return Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
           ),
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
               children: _getEventsForDay(_selectedDay).map((event) {
-                final displayText = '${event['name']} [${event['category']}]';
+                final category = event['category'] ?? 'その他';
+                final color = _categoryColors[category] ?? Colors.grey;
+                final displayText = event['name'] ?? '';
+
                 return Dismissible(
-                  key: Key(displayText),
+                  key: Key(displayText + category),
                   background: Container(
                     color: Colors.red,
                     alignment: Alignment.centerRight,
@@ -298,7 +323,14 @@ class _CalendarPageState extends State<CalendarPage> {
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
                   onDismissed: (direction) => _removeEvent(event),
-                  child: ListTile(title: Text(displayText)),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: color,
+                      radius: 8,
+                    ),
+                    title: Text(displayText),
+                    subtitle: Text(category),
+                  ),
                 );
               }).toList(),
             ),
