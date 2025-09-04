@@ -3,28 +3,39 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-void main() {
-  runApp(const MyApp());
+import 'package:flutter/foundation.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+
+  // ✅ デバッグ中は毎回アンケートを表示する
+  final bool isSurveyDone =
+      kDebugMode ? false : (prefs.getBool('isSurveyDone') ?? false);
+
+  runApp(MyApp(isSurveyDone: isSurveyDone));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isSurveyDone;
+  const MyApp({super.key, required this.isSurveyDone});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '自分磨き（仮）HARIBO Chamallows Soft kiss仕様',
+      title: '自分磨きアプリ',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const StartPage(),
+      home: StartPage(isSurveyDone: isSurveyDone), // ✅ まずは必ずスタートから
     );
   }
 }
 
 // ------------------ スタート画面 ------------------
 class StartPage extends StatelessWidget {
-  const StartPage({super.key});
+  final bool isSurveyDone;
+  const StartPage({super.key, required this.isSurveyDone});
 
   @override
   Widget build(BuildContext context) {
@@ -63,12 +74,96 @@ class StartPage extends StatelessWidget {
                 style: TextStyle(fontSize: 20, color: Colors.white),
               ),
               onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CalendarPage()),
-                );
+                if (isSurveyDone) {
+                  // ✅ すでにアンケート済みなら直接カレンダー
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const CalendarPage()),
+                  );
+                } else {
+                  // ✅ 初回ならアンケートへ
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SurveyPage()),
+                  );
+                }
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------ アンケート画面 ------------------
+class SurveyPage extends StatefulWidget {
+  const SurveyPage({super.key});
+
+  @override
+  State<SurveyPage> createState() => _SurveyPageState();
+}
+
+class _SurveyPageState extends State<SurveyPage> {
+  String? _selectedWeakness;
+
+  final List<String> _options = [
+    "清潔感",
+    "ファッション",
+    "コミュニケーション",
+    "恋愛知識",
+  ];
+
+  Future<void> _finishSurvey() async {
+    if (_selectedWeakness == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isSurveyDone', true); // ✅ 完了したことを保存
+    await prefs.setString('weakness', _selectedWeakness!);
+
+    if (mounted) {
+      // ✅ 完了後はカレンダーへ
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CalendarPage()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("アンケート")),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "今自分の中で一番自信がないものを選んでください：",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ..._options.map(
+              (option) => RadioListTile<String>(
+                title: Text(option),
+                value: option,
+                groupValue: _selectedWeakness,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedWeakness = value;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 30),
+            Center(
+              child: ElevatedButton(
+                onPressed: _selectedWeakness != null ? _finishSurvey : null,
+                child: const Text("完了"),
+              ),
+            )
           ],
         ),
       ),
@@ -226,7 +321,11 @@ class _CalendarPageState extends State<CalendarPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       TextField(
-                        onChanged: (value) => inputText = value,
+                        keyboardType: TextInputType.text, // 日本語入力に対応
+                        textInputAction: TextInputAction.done,
+                        onChanged: (value) {
+                          inputText = value;
+                        },
                         decoration:
                             const InputDecoration(hintText: '予定を入力してください'),
                       ),
