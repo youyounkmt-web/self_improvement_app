@@ -24,7 +24,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+<<<<<<< HEAD
       title: '自分磨きアプリ',
+=======
+      title: '自分磨き（仮）',
+>>>>>>> 4164195d61e73a7400be5a738a87947e0210e4f1
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
@@ -46,19 +50,15 @@ class StartPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.calendar_today,
-              size: 100,
-              color: Colors.deepPurple,
-            ),
+            const Icon(Icons.calendar_today,
+                size: 100, color: Colors.deepPurple),
             const SizedBox(height: 20),
             const Text(
               '自分磨き（仮）',
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepPurple,
-              ),
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple),
             ),
             const SizedBox(height: 40),
             ElevatedButton(
@@ -66,14 +66,11 @@ class StartPage extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
+                    borderRadius: BorderRadius.circular(30)),
                 backgroundColor: Colors.deepPurple,
               ),
-              child: const Text(
-                'START',
-                style: TextStyle(fontSize: 20, color: Colors.white),
-              ),
+              child: const Text('START',
+                  style: TextStyle(fontSize: 20, color: Colors.white)),
               onPressed: () {
                 if (isSurveyDone) {
                   // ✅ すでにアンケート済みなら直接カレンダー
@@ -186,21 +183,25 @@ class _CalendarPageState extends State<CalendarPage> {
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
 
-  final List<String> _categories = ['筋トレ', '服を買う', '勉強', 'その他'];
-
-  // カテゴリーごとの色
-  final Map<String, Color> _categoryColors = {
-    '筋トレ': Colors.red,
-    '服を買う': Colors.blue,
-    '勉強': Colors.green,
-    'その他': Colors.grey,
-  };
+  // カテゴリ（SharedPreferences保存対象）
+  List<Map<String, dynamic>> _categories = [
+    {"name": "筋トレ", "color": Colors.red.value},
+    {"name": "服を買う", "color": Colors.blue.value},
+    {"name": "勉強", "color": Colors.green.value},
+    {"name": "その他", "color": Colors.grey.value},
+  ];
 
   final Map<DateTime, List<Map<String, String>>> _events = {};
+
+  // ログインボーナス
+  int _points = 0;
+  String? _lastLoginDate;
 
   @override
   void initState() {
     super.initState();
+    _loadCategories();
+    _loadLoginBonus();
     _loadEvents();
     _autoSchedule();
   }
@@ -267,9 +268,62 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
+  // ------------------ カテゴリ処理 ------------------
+  Future<void> _loadCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? catJson = prefs.getString('categories');
+    if (catJson != null) {
+      final List decoded = json.decode(catJson);
+      _categories = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      setState(() {});
+    }
+  }
+
+  Future<void> _saveCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('categories', json.encode(_categories));
+  }
+
+  // ------------------ ログインボーナス ------------------
+  Future<void> _loadLoginBonus() async {
+    final prefs = await SharedPreferences.getInstance();
+    _points = prefs.getInt("points") ?? 0;
+    _lastLoginDate = prefs.getString("lastLoginDate");
+
+    final today = DateTime.now();
+    final todayStr = "${today.year}-${today.month}-${today.day}";
+
+    if (_lastLoginDate != todayStr) {
+      // 1日1回 +10pt
+      const dailyBonus = 10;
+      _points += dailyBonus;
+      _lastLoginDate = todayStr;
+
+      await prefs.setInt("points", _points);
+      await prefs.setString("lastLoginDate", todayStr);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("ログインボーナス"),
+            content:
+                Text("今日もログインありがとう！\n+${dailyBonus}pt 獲得 🎁\n合計：$_points pt"),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("OK"))
+            ],
+          ),
+        );
+      });
+    }
+    setState(() {});
+  }
+
+  // ------------------ イベント処理 ------------------
   String _dateToString(DateTime date) =>
       '${date.year}-${date.month}-${date.day}';
-
   DateTime _stringToDate(String dateString) {
     final parts = dateString.split('-');
     return DateTime(
@@ -282,10 +336,10 @@ class _CalendarPageState extends State<CalendarPage> {
     if (eventsJson != null) {
       final decodedData = json.decode(eventsJson);
       _events.clear();
-
       decodedData.forEach((key, value) {
         final date = _stringToDate(key);
         if (value is List) {
+<<<<<<< HEAD
           if (value.isNotEmpty && value.first is String) {
             _events[date] = value
                 .map((e) => {'name': e as String, 'category': 'その他'})
@@ -296,9 +350,12 @@ class _CalendarPageState extends State<CalendarPage> {
           } else {
             _events[date] = [];
           }
+=======
+          _events[date] = List<Map<String, String>>.from(
+              value.map((e) => Map<String, String>.from(e)));
+>>>>>>> 4164195d61e73a7400be5a738a87947e0210e4f1
         }
       });
-
       setState(() {});
     }
   }
@@ -331,10 +388,47 @@ class _CalendarPageState extends State<CalendarPage> {
     setState(() {});
   }
 
+  // カテゴリ名から色を取得
+  Color _getCategoryColor(String category) {
+    final found = _categories.firstWhere((c) => c["name"] == category,
+        orElse: () => {"color": Colors.grey.value});
+    return Color(found["color"]);
+  }
+
+  // ------------------ UI ------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('チョコマシュカレンダー')),
+      appBar: AppBar(
+        title: const Text("自分磨きカレンダー(仮)"),
+        actions: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text("ポイント: $_points pt"),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.category),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CategoryPage(
+                    categories: _categories,
+                    onSave: (updated) {
+                      setState(() {
+                        _categories = updated;
+                        _saveCategories();
+                      });
+                    },
+                  ),
+                ),
+              );
+            },
+          )
+        ],
+      ),
       body: Column(
         children: [
           TableCalendar(
@@ -358,14 +452,13 @@ class _CalendarPageState extends State<CalendarPage> {
                   children: events.take(3).map((event) {
                     final category =
                         (event as Map<String, String>)['category'] ?? 'その他';
-                    final color = _categoryColors[category] ?? Colors.grey;
                     return Container(
                       width: 6,
                       height: 6,
                       margin: const EdgeInsets.symmetric(horizontal: 0.5),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: color,
+                        color: _getCategoryColor(category),
                       ),
                     );
                   }).toList(),
@@ -378,9 +471,7 @@ class _CalendarPageState extends State<CalendarPage> {
             child: ListView(
               children: _getEventsForDay(_selectedDay).map((event) {
                 final category = event['category'] ?? 'その他';
-                final color = _categoryColors[category] ?? Colors.grey;
                 final displayText = event['name'] ?? '';
-
                 return Dismissible(
                   key: ValueKey(displayText + category),
                   background: Container(
@@ -392,9 +483,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   onDismissed: (direction) => _removeEvent(event),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: color,
-                      radius: 8,
-                    ),
+                        backgroundColor: _getCategoryColor(category),
+                        radius: 8),
                     title: Text(displayText),
                     subtitle: Text(category),
                   ),
@@ -408,7 +498,7 @@ class _CalendarPageState extends State<CalendarPage> {
         child: const Icon(Icons.add),
         onPressed: () {
           String inputText = '';
-          String selectedCategory = _categories[0];
+          String selectedCategory = _categories.first["name"];
 
           showDialog(
             context: context,
@@ -439,19 +529,19 @@ class _CalendarPageState extends State<CalendarPage> {
                           }
                         },
                         items: _categories
-                            .map((category) => DropdownMenuItem(
-                                  value: category,
-                                  child: Text(category),
-                                ))
+                            .map<DropdownMenuItem<String>>(
+                                (c) => DropdownMenuItem<String>(
+                                      value: c["name"],
+                                      child: Text(c["name"]),
+                                    ))
                             .toList(),
                       ),
                     ],
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('キャンセル'),
-                    ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('キャンセル')),
                     TextButton(
                       onPressed: () {
                         if (inputText.isNotEmpty) {
@@ -467,6 +557,140 @@ class _CalendarPageState extends State<CalendarPage> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+// ------------------ カテゴリ管理画面 ------------------
+class CategoryPage extends StatefulWidget {
+  final List<Map<String, dynamic>> categories;
+  final Function(List<Map<String, dynamic>>) onSave;
+
+  const CategoryPage(
+      {super.key, required this.categories, required this.onSave});
+
+  @override
+  State<CategoryPage> createState() => _CategoryPageState();
+}
+
+class _CategoryPageState extends State<CategoryPage> {
+  late List<Map<String, dynamic>> _localCategories;
+
+  @override
+  void initState() {
+    super.initState();
+    _localCategories = List.from(widget.categories);
+  }
+
+  void _addCategory() {
+    String name = '';
+    Color color = Colors.grey;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text("新しいカテゴリ"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(labelText: "カテゴリ名"),
+                  onChanged: (val) => name = val,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  children: [
+                    Colors.red,
+                    Colors.blue,
+                    Colors.green,
+                    Colors.purple,
+                    Colors.orange,
+                    Colors.pink,
+                    Colors.teal,
+                    Colors.grey,
+                  ].map((c) {
+                    return GestureDetector(
+                      onTap: () => setStateDialog(() => color = c),
+                      child: Container(
+                        margin: const EdgeInsets.all(4),
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: c,
+                          border: Border.all(
+                            color:
+                                color == c ? Colors.black : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                )
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("キャンセル")),
+              TextButton(
+                onPressed: () {
+                  if (name.isNotEmpty) {
+                    setState(() {
+                      _localCategories
+                          .add({"name": name, "color": color.value});
+                    });
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text("追加"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _removeCategory(int index) {
+    setState(() => _localCategories.removeAt(index));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("カテゴリ管理"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: () {
+              widget.onSave(_localCategories);
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+      body: ListView.builder(
+        itemCount: _localCategories.length,
+        itemBuilder: (context, index) {
+          final category = _localCategories[index];
+          return ListTile(
+            leading: CircleAvatar(backgroundColor: Color(category["color"])),
+            title: Text(category["name"]),
+            trailing: IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () => _removeCategory(index)),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
+        onPressed: _addCategory,
       ),
     );
   }
