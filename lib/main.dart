@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'dart:math';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +19,7 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   final bool isSurveyDone;
-  const MyApp({super.key, required this.isSurveyDone});
+  const MyApp({Key? key, required this.isSurveyDone}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +150,9 @@ class _SurveyPageState extends State<SurveyPage> {
               (option) => RadioListTile<String>(
                 title: Text(option),
                 value: option,
+                // ignore: deprecated_member_use
                 groupValue: _selectedWeakness,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   setState(() {
                     _selectedWeakness = value;
@@ -199,6 +202,69 @@ class _CalendarPageState extends State<CalendarPage> {
   void initState() {
     super.initState();
     _loadEvents();
+    _autoSchedule();
+  }
+// ------------------ 自動スケジューリングロジック ------------------
+
+  Future<void> _autoSchedule() async {
+    final prefs = await SharedPreferences.getInstance();
+    final weakness = prefs.getString('weakness'); // アンケート結果を取得
+
+    // 既存イベントがあればスキップ（初回のみ生成）
+    final existingEvents = prefs.getString('events');
+    if (existingEvents != null && existingEvents.isNotEmpty) return;
+
+    // カテゴリごとの割当回数（1週間あたり）
+    final Map<String, int> baseSchedule = {
+      '筋トレ': 1,
+      '服を買う': 1,
+      '勉強': 1,
+      'その他': 1,
+    };
+
+    // 弱点に応じて強化カテゴリを週2-3回に増やす
+    if (weakness == "ファッション") {
+      baseSchedule['服を買う'] = 3;
+    } else if (weakness == "恋愛知識") {
+      baseSchedule['勉強'] = 3;
+    } else if (weakness == "清潔感") {
+      baseSchedule['筋トレ'] = 3;
+    }
+
+    final today = DateTime.now();
+    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+    final random = Random();
+
+    // 今後4週間分を自動生成
+    for (int week = 0; week < 4; week++) {
+      final weekStart = startOfWeek.add(Duration(days: week * 7));
+
+      // 1週間 = 7日分のスロットを用意してシャッフル
+      List<DateTime> availableDays =
+          List.generate(7, (i) => weekStart.add(Duration(days: i)));
+      availableDays.shuffle(random);
+
+      // 割り当てるカテゴリを全部まとめてリスト化
+      List<String> scheduleList = [];
+      baseSchedule.forEach((category, count) {
+        scheduleList.addAll(List.filled(count, category));
+      });
+
+      // カテゴリのリストもシャッフルして分散
+      scheduleList.shuffle(random);
+
+      // 両方のリストを順番にマッチング
+      for (int i = 0;
+          i < scheduleList.length && i < availableDays.length;
+          i++) {
+        final category = scheduleList[i];
+        final day = availableDays[i];
+
+        if (_getEventsForDay(day).isEmpty) {
+          _addEvent("$category の予定", category);
+        }
+      }
+    }
   }
 
   String _dateToString(DateTime date) =>
@@ -221,12 +287,12 @@ class _CalendarPageState extends State<CalendarPage> {
         final date = _stringToDate(key);
         if (value is List) {
           if (value.isNotEmpty && value.first is String) {
-            _events[date] = (value as List)
+            _events[date] = value
                 .map((e) => {'name': e as String, 'category': 'その他'})
                 .toList();
           } else if (value.isNotEmpty && value.first is Map) {
             _events[date] = List<Map<String, String>>.from(
-                (value as List).map((e) => Map<String, String>.from(e)));
+                value.map((e) => Map<String, String>.from(e)));
           } else {
             _events[date] = [];
           }
@@ -275,6 +341,7 @@ class _CalendarPageState extends State<CalendarPage> {
             firstDay: DateTime.utc(2020, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: _focusedDay,
+            calendarFormat: CalendarFormat.twoWeeks,
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
@@ -315,7 +382,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 final displayText = event['name'] ?? '';
 
                 return Dismissible(
-                  key: Key(displayText + category),
+                  key: ValueKey(displayText + category),
                   background: Container(
                     color: Colors.red,
                     alignment: Alignment.centerRight,

@@ -6,7 +6,7 @@ import 'package:self_improvement_app/main.dart'; // あなたのmain.dartをイ�
 void main() {
   testWidgets('スタート画面にタイトルとボタンが表示されるかテスト', (WidgetTester tester) async {
     // あなたのアプリ（MyApp）をビルドしてフレームをトリガーします。
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const MyApp(isSurveyDone: false));
 
     // '自分磨き（仮）'というテキストを持つウィジェットが1つ存在することを確認します。
     expect(find.text('自分磨き（仮）'), findsOneWidget);
@@ -20,7 +20,7 @@ void main() {
 
   testWidgets('STARTボタンをタップするとカレンダー画面に遷移するかテスト', (WidgetTester tester) async {
     // アプリをビルドします。
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const MyApp(isSurveyDone: false));
 
     // STARTボタンをタップします。
     await tester.tap(find.text('START'));
