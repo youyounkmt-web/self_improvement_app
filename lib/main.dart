@@ -24,11 +24,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-<<<<<<< HEAD
-      title: '自分磨きアプリ',
-=======
       title: '自分磨き（仮）',
->>>>>>> 4164195d61e73a7400be5a738a87947e0210e4f1
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
@@ -182,6 +178,14 @@ class CalendarPage extends StatefulWidget {
 class _CalendarPageState extends State<CalendarPage> {
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
+
+  Future<void> _resetEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('events'); // 保存されている予定を削除
+    setState(() {
+      _events.clear(); // メモリ上の予定も削除
+    });
+  }
 
   // カテゴリ（SharedPreferences保存対象）
   List<Map<String, dynamic>> _categories = [
@@ -339,7 +343,6 @@ class _CalendarPageState extends State<CalendarPage> {
       decodedData.forEach((key, value) {
         final date = _stringToDate(key);
         if (value is List) {
-<<<<<<< HEAD
           if (value.isNotEmpty && value.first is String) {
             _events[date] = value
                 .map((e) => {'name': e as String, 'category': 'その他'})
@@ -350,10 +353,6 @@ class _CalendarPageState extends State<CalendarPage> {
           } else {
             _events[date] = [];
           }
-=======
-          _events[date] = List<Map<String, String>>.from(
-              value.map((e) => Map<String, String>.from(e)));
->>>>>>> 4164195d61e73a7400be5a738a87947e0210e4f1
         }
       });
       setState(() {});
@@ -409,6 +408,10 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
           ),
           IconButton(
+            icon: const Icon(Icons.refresh), // 🔄 リセットアイコン
+            onPressed: _resetEvents, // 押すと予定をリセット
+          ),
+          IconButton(
             icon: const Icon(Icons.category),
             onPressed: () async {
               await Navigator.push(
@@ -426,7 +429,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 ),
               );
             },
-          )
+          ),
         ],
       ),
       body: Column(
