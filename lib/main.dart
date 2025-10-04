@@ -206,9 +206,11 @@ class _CalendarPageState extends State<CalendarPage> {
     super.initState();
     _loadCategories();
     _loadLoginBonus();
-    _loadEvents();
-    _autoSchedule();
+    _loadEvents().then((_) {
+      _autoSchedule(); // ← ロード完了後に呼ぶ
+    });
   }
+
 // ------------------ 自動スケジューリングロジック ------------------
 
   Future<void> _autoSchedule() async {
@@ -219,57 +221,66 @@ class _CalendarPageState extends State<CalendarPage> {
     final existingEvents = prefs.getString('events');
     if (existingEvents != null && existingEvents.isNotEmpty) return;
 
-    // カテゴリごとの割当回数（1週間あたり）
+    // カテゴリごとの割当回数（2週間あたりに変更）
     final Map<String, int> baseSchedule = {
-      '筋トレ': 1,
-      '服を買う': 1,
-      '勉強': 1,
-      'その他': 1,
+      '筋トレ': 2,
+      '服を買う': 2,
+      '勉強': 2,
+      'その他': 2,
     };
 
-    // 弱点に応じて強化カテゴリを週2-3回に増やす
+    // 弱点に応じて強化カテゴリを週2-3回 → 2週間で4〜6回に増やす
     if (weakness == "ファッション") {
-      baseSchedule['服を買う'] = 3;
+      baseSchedule['服を買う'] = 6;
     } else if (weakness == "恋愛知識") {
-      baseSchedule['勉強'] = 3;
+      baseSchedule['勉強'] = 6;
     } else if (weakness == "清潔感") {
-      baseSchedule['筋トレ'] = 3;
+      baseSchedule['筋トレ'] = 6;
     }
 
     final today = DateTime.now();
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
     final random = Random();
 
-    // 今後4週間分を自動生成
-    for (int week = 0; week < 4; week++) {
-      final weekStart = startOfWeek.add(Duration(days: week * 7));
+    // 今後2週間分を自動生成
+    final totalDays = 14;
+    List<DateTime> allDays = List.generate(
+      totalDays,
+      (i) => startOfWeek.add(Duration(days: i)),
+    );
+    allDays.shuffle(random);
 
-      // 1週間 = 7日分のスロットを用意してシャッフル
-      List<DateTime> availableDays =
-          List.generate(7, (i) => weekStart.add(Duration(days: i)));
-      availableDays.shuffle(random);
+    // 割り当てるカテゴリを全部まとめてリスト化
+    List<String> scheduleList = [];
+    baseSchedule.forEach((category, count) {
+      scheduleList.addAll(List.filled(count, category));
+    });
 
-      // 割り当てるカテゴリを全部まとめてリスト化
-      List<String> scheduleList = [];
-      baseSchedule.forEach((category, count) {
-        scheduleList.addAll(List.filled(count, category));
-      });
+    // カテゴリのリストもシャッフルして分散
+    scheduleList.shuffle(random);
 
-      // カテゴリのリストもシャッフルして分散
-      scheduleList.shuffle(random);
+    // 1日1件制約を守りながらスケジュールを割り当てる
+    int dayIndex = 0;
+    for (String category in scheduleList) {
+      // 空き日を探す
+      while (dayIndex < allDays.length) {
+        final day = allDays[dayIndex];
+        dayIndex++;
 
-      // 両方のリストを順番にマッチング
-      for (int i = 0;
-          i < scheduleList.length && i < availableDays.length;
-          i++) {
-        final category = scheduleList[i];
-        final day = availableDays[i];
-
+        // 既に予定が入っていない日だけに追加
         if (_getEventsForDay(day).isEmpty) {
-          _addEvent("$category の予定", category);
+          print("🗓 ${day.toString().split(' ')[0]} に $category を追加");
+          _addEvent("$category の予定", category, day);
+          break;
         }
       }
+
+      // 空き日が尽きたら終了
+      if (dayIndex >= allDays.length) break;
     }
+
+    await _saveEvents();
+    setState(() {});
   }
 
   // ------------------ カテゴリ処理 ------------------
@@ -367,12 +378,12 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   List<Map<String, String>> _getEventsForDay(DateTime day) {
-    return _events[DateTime(day.year, day.month, day.day)] ?? [];
+    final dateKey = DateTime(day.year, day.month, day.day);
+    return _events[dateKey] ?? [];
   }
 
-  void _addEvent(String name, String category) {
-    final date =
-        DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+  void _addEvent(String name, String category, DateTime day) {
+    final date = DateTime(day.year, day.month, day.day); // ← dayを使う
     if (_events[date] == null) _events[date] = [];
     _events[date]!.add({'name': name, 'category': category});
     _saveEvents();
@@ -548,7 +559,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     TextButton(
                       onPressed: () {
                         if (inputText.isNotEmpty) {
-                          _addEvent(inputText, selectedCategory);
+                          _addEvent(inputText, selectedCategory, _selectedDay);
                         }
                         Navigator.pop(context);
                       },
