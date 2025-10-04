@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'home_page.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -19,16 +20,15 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   final bool isSurveyDone;
-  const MyApp({Key? key, required this.isSurveyDone}) : super(key: key);
+  const MyApp({super.key, required this.isSurveyDone});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '自分磨き（仮）',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: StartPage(isSurveyDone: isSurveyDone), // ✅ まずは必ずスタートから
+      title: 'スケジュールアプリ',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: StartPage(isSurveyDone: isSurveyDone), // ✅ StartPageに渡す！
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -72,8 +72,7 @@ class StartPage extends StatelessWidget {
                   // ✅ すでにアンケート済みなら直接カレンダー
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const CalendarPage()),
+                    MaterialPageRoute(builder: (context) => const HomePage()),
                   );
                 } else {
                   // ✅ 初回ならアンケートへ
@@ -86,6 +85,126 @@ class StartPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// -------------------ホーム画面 ------------------
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _points = 120; // 仮のポイント
+  int _loginStreak = 5; // 連続ログイン日数（仮）
+
+  Color _getColorForPoints(int points) {
+    if (points >= 200) return Colors.amber; // 金色
+    if (points >= 100) return Colors.green;
+    if (points >= 50) return Colors.blue;
+    return Colors.grey;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("ホーム"),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // 上部：ログイン日数とポイント
+            Column(
+              children: [
+                Text("連続ログイン日数: $_loginStreak日",
+                    style: const TextStyle(fontSize: 20)),
+                const SizedBox(height: 8),
+                Text("ポイント: $_points pt", style: const TextStyle(fontSize: 20)),
+              ],
+            ),
+
+            // 中央：ポイントに応じた色の変化
+            Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _getColorForPoints(_points),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: const Center(
+                child: Text(
+                  "あなたのステータス",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+
+            // 下部：ボタン2つ
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const CalendarPage()),
+                    );
+                  },
+                  icon: const Icon(Icons.calendar_month),
+                  label: const Text("カレンダーへ"),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SettingsPage()),
+                    );
+                  },
+                  icon: const Icon(Icons.settings),
+                  label: const Text("設定へ"),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------ 設定画面 ------------------
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("設定")),
+      body: const Center(
+        child: Text("ここに設定項目を追加予定"),
       ),
     );
   }
@@ -120,7 +239,7 @@ class _SurveyPageState extends State<SurveyPage> {
       // ✅ 完了後はカレンダーへ
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CalendarPage()),
+        MaterialPageRoute(builder: (context) => const HomePage()),
       );
     }
   }
@@ -304,36 +423,32 @@ class _CalendarPageState extends State<CalendarPage> {
     final prefs = await SharedPreferences.getInstance();
     _points = prefs.getInt("points") ?? 0;
     _lastLoginDate = prefs.getString("lastLoginDate");
+    int streak = prefs.getInt("streak") ?? 1;
 
     final today = DateTime.now();
     final todayStr = "${today.year}-${today.month}-${today.day}";
+    final yesterday = today.subtract(const Duration(days: 1));
+    final yesterdayStr =
+        "${yesterday.year}-${yesterday.month}-${yesterday.day}";
 
     if (_lastLoginDate != todayStr) {
-      // 1日1回 +10pt
+      // 連続ログイン判定
+      if (_lastLoginDate == yesterdayStr) {
+        streak++;
+      } else {
+        streak = 1; // 途切れた
+      }
+
       const dailyBonus = 10;
       _points += dailyBonus;
       _lastLoginDate = todayStr;
 
       await prefs.setInt("points", _points);
       await prefs.setString("lastLoginDate", todayStr);
+      await prefs.setInt("streak", streak);
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("ログインボーナス"),
-            content:
-                Text("今日もログインありがとう！\n+${dailyBonus}pt 獲得 🎁\n合計：$_points pt"),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("OK"))
-            ],
-          ),
-        );
-      });
+      setState(() {});
     }
-    setState(() {});
   }
 
   // ------------------ イベント処理 ------------------
